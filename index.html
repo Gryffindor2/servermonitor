@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>服务器状态</title>
+    <script src="https://cdn.staticfile.org/vue/3.0.5/vue.global.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <table>
+        <thead>
+          <tr>
+            <th>ip</th>
+            <th>cpu model</th>
+            <th>cpu cores</th>
+            <th>mem/G</th>
+            <th>gpu</th>
+            <th>disk/G</th>
+            <th>nvcc</th>
+            <th>gala</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="server in servers" :key="server.ip">
+            <td>{{ server.ip }}</td>
+            <template v-if="server.status">
+              <td>{{ server.result.cpu[0] }}</td>
+              <td>{{ server.result.cpu[1] }}</td>
+              <td>{{ server.result.mem }}</td>
+              <td>{{ server.result.gpu }}</td>
+              <td>{{ server.result.disk }}</td>
+              <td>{{ server.result.program.nvcc }}</td>
+              <td>{{ server.result.file.gala }}</td>
+            </template>
+            <template v-else>
+              <td colspan="7">connection failed</td>
+            </template>
+
+          </tr>
+          <tr v-if="loading">
+            <td colspan="8"> 
+              <div class="loading">测试中</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <button v-bind:disabled="loading" @click="refreshData()">测试</button>
+    </div>
+    <style>
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      button {
+        margin-top: 10px;
+        float: right;
+        border-radius: 5px;
+        border-style: none;
+        background-color: #dbdbdb;
+        width: 70px;
+        height: 40px;
+      }
+
+      .loading{
+        font-size: 32px;
+      }
+    </style>
+    <script>
+      const app = Vue.createApp({
+        data() {
+          return {
+            servers: [],
+            loading: true,
+            next: 0,
+            hasNext: true
+          };
+        },
+        methods: {
+          async refreshData() {
+            this.hasNext = true;
+            this.next = 0;
+            this.servers = [];
+            while(this.hasNext){
+              this.loading = true;
+              await fetch("/refresh" + "?index=" + this.next)
+                .then((response) => response.json())
+                .then((data) => {
+                  this.hasNext = data.hasnext;
+                  this.next += 1;
+                  this.servers.push(data);
+                })
+                .catch((error) => {
+                  console.error("Error:", error);
+                });
+            }
+            this.loading = false;
+          },
+        },
+        mounted() {
+          this.refreshData();
+        },
+      });
+
+      app.mount("#app");
+    </script>
+  </body>
+</html>

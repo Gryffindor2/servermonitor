@@ -1,0 +1,22 @@
+{
+    "servers":[
+        {
+            "ip":"192.9.1.2",
+            "username":"root",
+            "password":"123456",
+            "prog":"common"
+        },
+        {
+            "ip":"192.9.1.3",
+            "username":"root",
+            "password":"123456",
+            "prog":"common"
+        },
+        {
+            "ip":"192.9.1.4",
+            "username":"root",
+            "password":"123456",
+            "prog":"common"
+        }
+    ]
+}

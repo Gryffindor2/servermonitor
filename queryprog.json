@@ -1,0 +1,12 @@
+{
+    "common":{
+        "program":["nvcc"],
+        "file":[
+            {
+                "path": "/opt/galamost4/lib/",
+                "filename": "galamost.so",
+                "alias": "gala"
+            }
+        ]
+    }
+}
