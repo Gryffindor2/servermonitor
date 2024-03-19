@@ -55,7 +55,7 @@ class client:
         if self.connect_error:
             return 'connection failed'
         mem_info = (self.execute("free -h | grep Mem").split())[1]
-        mem_size = float(mem_info[-5:-1])
+        mem_size = float(mem_info[:-1])
         return mem_size
 
     def check_disk(self):
