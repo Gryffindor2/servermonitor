@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <title>服务器状态</title>
@@ -18,34 +18,46 @@
             <th>disk/G</th>
             <th>nvcc</th>
             <th>gala</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="server in servers" :key="server.ip">
+          <tr v-for="(server,index) in servers" :key="server.ip">
             <td>{{ server.ip }}</td>
             <template v-if="server.status">
               <td>{{ server.result.cpu[0] }}</td>
               <td>{{ server.result.cpu[1] }}</td>
               <td>{{ server.result.mem }}</td>
-              <td>{{ server.result.gpu }}</td>
+              <td>
+                <div style="display: flex; flex-direction: column;">
+                  <template v-for="(g, index) in server.result.gpu">
+                    {{ g }}
+                    <progress :value="server.result.gpu_usage[index]" max="100"/>
+                  </template>
+                </div>
+              </td>
               <td>{{ server.result.disk }}</td>
               <td>{{ server.result.program.nvcc }}</td>
               <td>{{ server.result.file.gala }}</td>
+              <td>
+                <button v-if="server.loading">刷新中</button>
+                <button v-if="!server.loading" @click="refresh(index)">刷新</button>
+              </td>
             </template>
             <template v-else>
-              <td colspan="7">connection failed</td>
+              <td colspan="8">connection failed</td>
             </template>
 
           </tr>
           <tr v-if="loading">
-            <td colspan="8"> 
+            <td colspan="9"> 
               <div class="loading">测试中</div>
             </td>
           </tr>
         </tbody>
       </table>
       
-      <button v-bind:disabled="loading" @click="refreshData()">测试</button>
+      <button v-bind:disabled="loading" @click="refreshAll()">测试</button>
     </div>
     <style>
       table {
@@ -86,7 +98,7 @@
           };
         },
         methods: {
-          async refreshData() {
+          async refreshAll() {
             this.hasNext = true;
             this.next = 0;
             this.servers = [];
@@ -95,6 +107,7 @@
               await fetch("/refresh" + "?index=" + this.next)
                 .then((response) => response.json())
                 .then((data) => {
+                  data.loading = false
                   this.hasNext = data.hasnext;
                   this.next += 1;
                   this.servers.push(data);
@@ -105,9 +118,22 @@
             }
             this.loading = false;
           },
+          refresh(index){
+            this.servers[index].loading = true;
+            fetch("/refresh" + "?index=" + index)
+                  .then((response) => response.json())
+                  .then((data) => {
+                    data.loading = false;
+                    this.servers[index] = data;
+                  })
+                  .catch((error) => {
+                    console.error("Error:", error);
+                  });
+          },
         },
+        
         mounted() {
-          this.refreshData();
+          this.refreshAll();
         },
       });
 

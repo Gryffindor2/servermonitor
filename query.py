@@ -1,20 +1,60 @@
 import paramiko
+from apscheduler.schedulers.blocking import BlockingScheduler
 
-class client:
+server_list = {}
+
+def clock_events():
+    to_be_deleted_ip_list = []
+    for key in server_list:
+        value = server_list[key]
+        if value["life"] > 0:
+            value["life"] -= 1
+        else:
+            value["server"].disconnect()
+            to_be_deleted_ip_list.append(key)
+    for ip in to_be_deleted_ip_list:
+        del server_list[ip]
+    
+            
+def start_moniting():
+    sched = BlockingScheduler()
+    sched.add_job(clock_events, 'interval', seconds=20)
+    sched.start()
+
+class ssh_server:
     def __init__(self, ip, username, password):
         self.ip = ip
         self.username = username
         self.password = password
-        print('connect to ' + ip, end = ' ')
-        try:
-            self.client = paramiko.SSHClient()
-            self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.client.connect(self.ip, username=self.username, password=self.password, timeout=5)
-            self.connect_error = False
-            print('\033[92mOK\033[0m')
-        except:
-            self.connect_error = True
-            print("\033[91mfailed\033[0m")
+        self.connect_error = False
+    
+
+    def alive(self):
+        if self.ip in server_list:
+            server_list[self.ip]["life"] = 5
+        else:
+            temp = {}
+            temp['server'] = self
+            temp["life"] = 5
+            server_list[self.ip] = temp
+
+    def connect(self):
+        if self.ip in server_list:
+            self.alive()
+            print('already connected to ' + self.ip, end = ' ')
+        else:
+            print('connect to ' + self.ip, end = ' ')
+            try:
+                self.server = paramiko.SSHClient()
+                self.server.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                self.server.connect(self.ip, username=self.username, password=self.password, timeout=10)
+                self.connect_error = False
+                self.alive()
+                print('\033[92mOK\033[0m')
+            except Exception as ex:
+                self.connect_error = True
+                print(ex)
+                print("\033[91mfailed\033[0m")
 
     def status(self):
         return not self.connect_error
@@ -40,7 +80,7 @@ class client:
     def execute(self, command):
         if self.connect_error:
             return 'connection failed'
-        stdin, stdout, stderr = self.client.exec_command(command)
+        stdin, stdout, stderr = self.server.exec_command(command)
         output = stdout.read().decode().strip()
         return output
     
@@ -81,14 +121,38 @@ class client:
         if self.connect_error:
             return 'connection failed'
         gpu_info = self.execute("nvidia-smi -L").split('\n')
+        
         gpu_list = []
         for gpu in gpu_info:
             start_index = gpu.find(":") + 2
             end_index = gpu.find("(") - 1
+            
             gpu_model = gpu[start_index:end_index]
             gpu_list.append(gpu_model)
         return gpu_list
     
-    def __del__(self):
+    def check_gpu_usage(self):
+        if self.connect_error:
+            return 'connection failed'
+        gpu_info_useage = self.execute("nvidia-smi | grep %").split('\n')
+        usage_list = []
+        for usage in gpu_info_useage:
+            usage_list.append(int(usage[1:].split('%')[0]))
+        print(usage_list)
+        return usage_list
+
+
+    def disconnect(self):
         if self.connect_error == False:
-            self.client.close()
+            self.server.close()
+            print('disconnect from ' + self.ip)
+
+    def __del__(self):
+        self.disconnect()
+    
+    @staticmethod
+    def new(ip, username, password):
+        if ip in server_list:
+            return server_list[ip]["server"]
+        else:
+            return ssh_server(ip, username, password)
